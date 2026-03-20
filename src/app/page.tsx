@@ -547,7 +547,7 @@ export default function Page() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep]);
+  }, [currentStep, gmailConnected]);
 
   useEffect(() => {
     if (restoreSessionStartedRef.current) return;
