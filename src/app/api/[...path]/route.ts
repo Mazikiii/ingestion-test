@@ -1,5 +1,8 @@
 const DEFAULT_BACKEND_API_URL = "http://127.0.0.1:4000";
-const BACKEND_API_URL = process.env.BACKEND_API_URL ?? DEFAULT_BACKEND_API_URL;
+const BACKEND_API_URL =
+  process.env.BACKEND_API_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  DEFAULT_BACKEND_API_URL;
 
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",

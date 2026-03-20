@@ -876,58 +876,61 @@ export default function Page() {
           </div>
         )}
 
-        {isLoggedIn && currentStep === "done" && !gmailConnected && (
+        {isLoggedIn && currentStep === "done" && !gmailConnected && !reconfirmingBank && (
           <>
-            {!showBankChange ? (
-              <div className="card">
-                <h2 className="cardTitle">Connect your email</h2>
-                <p className="cardDesc">
-                  Link your Gmail to start tracking your spending automatically.
-                </p>
-                {!gmailConnectUrl ? (
-                  <button className="btnPrimary" onClick={getGmailConnectUrl} disabled={isLoading}>
-                    {isLoading ? "Please wait..." : "Connect Gmail"}
-                  </button>
-                ) : (
-                  <>
-                    <p className="cardDesc">Open the link and approve access to Google.</p>
-                    <a
-                      href={gmailConnectUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="linkText"
-                    >
-                      Open Google Sign-In &rarr;
-                    </a>
-                    <div className="btnRow">
-                      <button
-                        className="btnSecondary"
-                        onClick={openGmailOauth}
-                        disabled={isLoading}
-                      >
-                        Open in new tab
-                      </button>
-                      <button
-                        className="btnPrimary"
-                        onClick={handleGmailDone}
-                        disabled={isLoading}
-                      >
-                        {isLoading ? "Checking..." : "Done"}
-                      </button>
-                    </div>
-                  </>
-                )}
-                <button
-                  className="linkBtn"
-                  onClick={() => setShowBankChange(true)}
-                  disabled={isLoading}
-                >
-                  Change bank
+            <div className="card">
+              <h2 className="cardTitle">Connect your email</h2>
+              <p className="cardDesc">
+                Link your Gmail to start tracking your spending automatically.
+              </p>
+              {!gmailConnectUrl ? (
+                <button className="btnPrimary" onClick={getGmailConnectUrl} disabled={isLoading}>
+                  {isLoading ? "Please wait..." : "Connect Gmail"}
                 </button>
-              </div>
-            ) : (
+              ) : (
+                <>
+                  <p className="cardDesc">Open the link and approve access to Google.</p>
+                  <a
+                    href={gmailConnectUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="linkText"
+                  >
+                    Open Google Sign-In &rarr;
+                  </a>
+                  <div className="btnRow">
+                    <button
+                      className="btnSecondary"
+                      onClick={openGmailOauth}
+                      disabled={isLoading}
+                    >
+                      Open in new tab
+                    </button>
+                    <button
+                      className="btnPrimary"
+                      onClick={handleGmailDone}
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Checking..." : "Done"}
+                    </button>
+                  </div>
+                </>
+              )}
+              <button
+                className="linkBtn"
+                onClick={() => {
+                  setShowBankChange(true);
+                  setReconfirmingBank(true);
+                }}
+                disabled={isLoading}
+              >
+                Change bank
+              </button>
+            </div>
+
+            {showBankChange && (
               <div className="card">
-                <h2 className="cardTitle">Change bank</h2>
+                <h2 className="cardTitle">Confirm your bank</h2>
                 <label className="field">
                   <span>Select your bank</span>
                   <select
@@ -946,7 +949,10 @@ export default function Page() {
                 <div className="btnRow">
                   <button
                     className="btnSecondary"
-                    onClick={() => setShowBankChange(false)}
+                    onClick={() => {
+                      setShowBankChange(false);
+                      setReconfirmingBank(false);
+                    }}
                     disabled={isLoading}
                   >
                     Cancel
@@ -962,6 +968,33 @@ export default function Page() {
               </div>
             )}
           </>
+        )}
+
+        {isLoggedIn && currentStep === "done" && !gmailConnected && reconfirmingBank && !showBankChange && (
+          <div className="card">
+            <h2 className="cardTitle">Confirm your bank</h2>
+            <p className="cardDesc">
+              Please confirm your bank before connecting your email.
+            </p>
+            <label className="field">
+              <span>Select your bank</span>
+              <select
+                className="input"
+                value={selectedBankId}
+                onChange={(e) => setSelectedBankId(e.target.value)}
+              >
+                <option value="">Choose a bank</option>
+                {banks.map((bank) => (
+                  <option key={String(bank.id)} value={String(bank.id)}>
+                    {bank.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="btnPrimary" onClick={changeBank} disabled={isLoading}>
+              {isLoading ? "Please wait..." : "Confirm"}
+            </button>
+          </div>
         )}
 
         {isLoggedIn && currentStep === "done" && gmailConnected && !showBankChange && (
@@ -990,51 +1023,6 @@ export default function Page() {
                 disabled={isLoading}
               >
                 Disconnect Gmail
-              </button>
-            </div>
-
-            <button
-              className="linkBtn"
-              onClick={() => setShowBankChange(true)}
-              disabled={isLoading}
-            >
-              Change bank
-            </button>
-          </div>
-        )}
-
-        {isLoggedIn && currentStep === "done" && gmailConnected && showBankChange && (
-          <div className="card">
-            <h2 className="cardTitle">Change bank</h2>
-            <label className="field">
-              <span>Select your bank</span>
-              <select
-                className="input"
-                value={selectedBankId}
-                onChange={(e) => setSelectedBankId(e.target.value)}
-              >
-                <option value="">Choose a bank</option>
-                {banks.map((bank) => (
-                  <option key={String(bank.id)} value={String(bank.id)}>
-                    {bank.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="btnRow">
-              <button
-                className="btnSecondary"
-                onClick={() => setShowBankChange(false)}
-                disabled={isLoading}
-              >
-                Cancel
-              </button>
-              <button
-                className="btnPrimary"
-                onClick={changeBank}
-                disabled={isLoading}
-              >
-                Save
               </button>
             </div>
           </div>
