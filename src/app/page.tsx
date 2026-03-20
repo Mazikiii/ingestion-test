@@ -106,6 +106,8 @@ export default function Page() {
   const [spendingPace, setSpendingPace] = useState<SpendingPace | null>(null);
   const [gmailConnected, setGmailConnected] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [showBankChange, setShowBankChange] = useState(false);
+  const [reconfirmingBank, setReconfirmingBank] = useState(false);
 
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -140,6 +142,8 @@ export default function Page() {
     setGmailConnectUrl("");
     setSpendingPace(null);
     setGmailConnected(false);
+    setShowBankChange(false);
+    setReconfirmingBank(false);
     if (spendingIntervalRef.current) {
       clearInterval(spendingIntervalRef.current);
       spendingIntervalRef.current = null;
@@ -329,7 +333,32 @@ export default function Page() {
         body: JSON.stringify({ bank_id: selectedBankId }),
       });
       await loadProfile();
+      setShowBankChange(false);
       setStatusMessage("Bank saved.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Something went wrong.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function changeBank() {
+    clearMessages();
+    if (!selectedBankId) {
+      setErrorMessage("Please select your bank.");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await requestJson("/onboarding/bank", {
+        method: "POST",
+        protectedRoute: true,
+        body: JSON.stringify({ bank_id: selectedBankId }),
+      });
+      await loadProfile();
+      setShowBankChange(false);
+      setReconfirmingBank(false);
+      setStatusMessage("Bank updated.");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Something went wrong.");
     } finally {
@@ -424,17 +453,28 @@ export default function Page() {
 
   async function checkGmailConnection() {
     try {
-      const data = await rawRequest("/ingestion/gmail/connect", {
+      const response = await rawRequest("/ingestion/gmail/status", {
         method: "GET",
         protectedRoute: true,
       });
-      if (data.ok) {
-        setGmailConnected(true);
+      if (response.ok) {
+        const data = (await response.json()) as { connected: boolean };
+        setGmailConnected(data.connected);
       } else {
         setGmailConnected(false);
       }
     } catch {
       setGmailConnected(false);
+    }
+  }
+
+  async function handleGmailDone() {
+    clearMessages();
+    setIsLoading(true);
+    try {
+      await checkGmailConnection();
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -459,6 +499,7 @@ export default function Page() {
       await loadProfile();
       setGmailConnected(false);
       setSpendingPace(null);
+      setReconfirmingBank(true);
       if (spendingIntervalRef.current) {
         clearInterval(spendingIntervalRef.current);
         spendingIntervalRef.current = null;
@@ -836,48 +877,94 @@ export default function Page() {
         )}
 
         {isLoggedIn && currentStep === "done" && !gmailConnected && (
-          <div className="card">
-            <h2 className="cardTitle">Connect your email</h2>
-            <p className="cardDesc">
-              Link your Gmail to start tracking your spending automatically.
-            </p>
-            {!gmailConnectUrl ? (
-              <button className="btnPrimary" onClick={getGmailConnectUrl} disabled={isLoading}>
-                {isLoading ? "Please wait..." : "Connect Gmail"}
-              </button>
-            ) : (
-              <>
-                <p className="cardDesc">Open the link and approve access to Google.</p>
-                <a
-                  href={gmailConnectUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="linkText"
+          <>
+            {!showBankChange ? (
+              <div className="card">
+                <h2 className="cardTitle">Connect your email</h2>
+                <p className="cardDesc">
+                  Link your Gmail to start tracking your spending automatically.
+                </p>
+                {!gmailConnectUrl ? (
+                  <button className="btnPrimary" onClick={getGmailConnectUrl} disabled={isLoading}>
+                    {isLoading ? "Please wait..." : "Connect Gmail"}
+                  </button>
+                ) : (
+                  <>
+                    <p className="cardDesc">Open the link and approve access to Google.</p>
+                    <a
+                      href={gmailConnectUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="linkText"
+                    >
+                      Open Google Sign-In &rarr;
+                    </a>
+                    <div className="btnRow">
+                      <button
+                        className="btnSecondary"
+                        onClick={openGmailOauth}
+                        disabled={isLoading}
+                      >
+                        Open in new tab
+                      </button>
+                      <button
+                        className="btnPrimary"
+                        onClick={handleGmailDone}
+                        disabled={isLoading}
+                      >
+                        {isLoading ? "Checking..." : "Done"}
+                      </button>
+                    </div>
+                  </>
+                )}
+                <button
+                  className="linkBtn"
+                  onClick={() => setShowBankChange(true)}
+                  disabled={isLoading}
                 >
-                  Open Google Sign-In &rarr;
-                </a>
+                  Change bank
+                </button>
+              </div>
+            ) : (
+              <div className="card">
+                <h2 className="cardTitle">Change bank</h2>
+                <label className="field">
+                  <span>Select your bank</span>
+                  <select
+                    className="input"
+                    value={selectedBankId}
+                    onChange={(e) => setSelectedBankId(e.target.value)}
+                  >
+                    <option value="">Choose a bank</option>
+                    {banks.map((bank) => (
+                      <option key={String(bank.id)} value={String(bank.id)}>
+                        {bank.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <div className="btnRow">
                   <button
                     className="btnSecondary"
-                    onClick={openGmailOauth}
+                    onClick={() => setShowBankChange(false)}
                     disabled={isLoading}
                   >
-                    Open in new tab
+                    Cancel
                   </button>
                   <button
                     className="btnPrimary"
-                    onClick={checkGmailConnection}
+                    onClick={changeBank}
                     disabled={isLoading}
                   >
-                    Done
+                    Save
                   </button>
                 </div>
-              </>
+              </div>
             )}
-          </div>
+          </>
         )}
 
-        {isLoggedIn && currentStep === "done" && gmailConnected && (
+        {isLoggedIn && currentStep === "done" && gmailConnected && !showBankChange && (
           <div className="card dashboard">
             <div className="spentCard">
               <p className="spentLabel">Spent this month</p>
@@ -903,6 +990,51 @@ export default function Page() {
                 disabled={isLoading}
               >
                 Disconnect Gmail
+              </button>
+            </div>
+
+            <button
+              className="linkBtn"
+              onClick={() => setShowBankChange(true)}
+              disabled={isLoading}
+            >
+              Change bank
+            </button>
+          </div>
+        )}
+
+        {isLoggedIn && currentStep === "done" && gmailConnected && showBankChange && (
+          <div className="card">
+            <h2 className="cardTitle">Change bank</h2>
+            <label className="field">
+              <span>Select your bank</span>
+              <select
+                className="input"
+                value={selectedBankId}
+                onChange={(e) => setSelectedBankId(e.target.value)}
+              >
+                <option value="">Choose a bank</option>
+                {banks.map((bank) => (
+                  <option key={String(bank.id)} value={String(bank.id)}>
+                    {bank.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="btnRow">
+              <button
+                className="btnSecondary"
+                onClick={() => setShowBankChange(false)}
+                disabled={isLoading}
+              >
+                Cancel
+              </button>
+              <button
+                className="btnPrimary"
+                onClick={changeBank}
+                disabled={isLoading}
+              >
+                Save
               </button>
             </div>
           </div>
