@@ -40,10 +40,10 @@ type RequestOptions = RequestInit & {
 type ProfilePayload = Profile | { profile: Profile };
 
 type SpendingPace = {
-  spent_this_month_kobo?: number | null;
-  monthly_budget_kobo?: number | null;
+  spent_this_month_kobo?: string | number | null;
+  monthly_budget_kobo?: string | number | null;
   days_remaining?: number | null;
-  daily_average_kobo?: number | null;
+  daily_average_kobo?: string | number | null;
 };
 
 const API_PROXY_BASE = "/api";
@@ -75,9 +75,13 @@ function normalizeProfilePayload(payload: ProfilePayload): Profile {
   return payload as Profile;
 }
 
-function koboToNaira(kobo: number | null | undefined): string {
+function koboToNaira(kobo: string | number | null | undefined): string {
   if (kobo == null) return "—";
-  const naira = kobo / 100;
+  const asString = String(kobo);
+  if (asString.length <= 2) return "—";
+  const withoutKobo = asString.slice(0, -2);
+  const naira = Number(withoutKobo);
+  if (!Number.isFinite(naira)) return "—";
   return `₦${naira.toLocaleString("en-NG", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -439,11 +443,11 @@ export default function Page() {
     clearMessages();
     setIsLoading(true);
     try {
-      const data = await requestJson<SpendingPace>("/spending-pace", {
+      const data = await requestJson<{ spending_pace: SpendingPace }>("/spending-pace", {
         method: "GET",
         protectedRoute: true,
       });
-      setSpendingPace(data);
+      setSpendingPace(data.spending_pace);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Could not load spending data.");
     } finally {
@@ -523,11 +527,11 @@ export default function Page() {
 
     const poll = async () => {
       try {
-        const data = await requestJson<SpendingPace>("/spending-pace", {
+        const data = await requestJson<{ spending_pace: SpendingPace }>("/spending-pace", {
           method: "GET",
           protectedRoute: true,
         });
-        setSpendingPace(data);
+        setSpendingPace(data.spending_pace);
       } catch {
         // Silent fail on auto-refresh
       }
