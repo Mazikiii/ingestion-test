@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import api from "@/lib/api";
+import { setTokens } from "@/lib/api";
 
 export default function GoogleCallbackPage() {
   return (
@@ -22,15 +22,17 @@ function GoogleCallbackContent() {
     const refreshToken = searchParams.get("refreshToken");
     const isNewUser = searchParams.get("isNewUser");
 
+    console.log("Google callback params:", { accessToken: !!accessToken, refreshToken: !!refreshToken, isNewUser });
+
     if (accessToken && refreshToken) {
-      api.setTokens(accessToken, refreshToken);
+      setTokens(accessToken, refreshToken);
       if (isNewUser === "true") {
         router.push("/onboarding");
       } else {
         router.push("/");
       }
     } else {
-      setError("No tokens received");
+      setError("No tokens received. Please try again.");
     }
   }, [searchParams, router]);
 

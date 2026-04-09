@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import api from "@/lib/api";
+import api, { setTokens } from "@/lib/api";
+import { authApi } from "@/lib/auth";
 
 type OnboardingStep = "profile" | "budget" | "bank" | "email_connect" | "set_pin" | "done";
 
@@ -225,17 +226,11 @@ export default function OnboardingPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.post("/auth/pin", { pin, confirmPin });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.message || "Failed to set PIN");
-        return;
-      }
-      const data = await res.json();
-      api.setTokens(data.accessToken, data.refreshToken);
+      const data = await authApi.setPin(pin, confirmPin);
+      setTokens(data.accessToken, data.refreshToken);
       router.push("/home");
     } catch (e) {
-      setError("Something went wrong");
+      setError(e instanceof Error ? e.message : "Failed to set PIN");
     } finally {
       setLoading(false);
     }

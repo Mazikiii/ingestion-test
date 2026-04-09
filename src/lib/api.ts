@@ -1,27 +1,27 @@
 const API_BASE = "/api";
 
-async function getAccessToken(): Promise<string | null> {
+function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
   return sessionStorage.getItem("accessToken");
 }
 
-async function getRefreshToken(): Promise<string | null> {
+function getRefreshToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("refreshToken");
 }
 
-function setTokens(accessToken: string, refreshToken: string) {
+export function setTokens(accessToken: string, refreshToken: string) {
   sessionStorage.setItem("accessToken", accessToken);
   localStorage.setItem("refreshToken", refreshToken);
 }
 
-function clearTokens() {
-  sessionStorage.remove("accessToken");
-  localStorage.remove("refreshToken");
+export function clearTokens() {
+  sessionStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
 }
 
 async function refreshAccessToken(): Promise<boolean> {
-  const refreshToken = await getRefreshToken();
+  const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
 
   try {
@@ -52,7 +52,7 @@ async function fetchWithAuth(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<Response> {
-  const accessToken = await getAccessToken();
+  const accessToken = getAccessToken();
 
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
@@ -82,11 +82,13 @@ async function fetchWithAuth(
 
       if (!success) {
         clearTokens();
-        window.location.href = "/login";
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
         return new Response(null, { status: 401 });
       }
 
-      const newAccessToken = await getAccessToken();
+      const newAccessToken = getAccessToken();
       headers["Authorization"] = `Bearer ${newAccessToken}`;
 
       return fetch(`${API_BASE}${endpoint}`, {
@@ -99,22 +101,48 @@ async function fetchWithAuth(
   return res;
 }
 
+export async function handleApiResponse<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    let message = `Error: ${res.status}`;
+    try {
+      const data = await res.json();
+      message = data.message || message;
+    } catch {
+      // Not JSON
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
 const api = {
-  get: (endpoint: string) => fetchWithAuth(endpoint, { method: "GET" }),
-  post: (endpoint: string, body?: unknown) =>
-    fetchWithAuth(endpoint, {
+  get: async (endpoint: string) => {
+    const res = await fetchWithAuth(endpoint, { method: "GET" });
+    return res;
+  },
+
+  post: async (endpoint: string, body?: unknown) => {
+    const res = await fetchWithAuth(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: body ? JSON.stringify(body) : undefined,
-    }),
-  patch: (endpoint: string, body?: unknown) =>
-    fetchWithAuth(endpoint, {
+    });
+    return res;
+  },
+
+  patch: async (endpoint: string, body?: unknown) => {
+    const res = await fetchWithAuth(endpoint, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: body ? JSON.stringify(body) : undefined,
-    }),
-  delete: (endpoint: string) =>
-    fetchWithAuth(endpoint, { method: "DELETE" }),
+    });
+    return res;
+  },
+
+  delete: async (endpoint: string) => {
+    const res = await fetchWithAuth(endpoint, { method: "DELETE" });
+    return res;
+  },
 
   setTokens,
   clearTokens,

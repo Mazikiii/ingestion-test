@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import api from "@/lib/api";
+import { authApi } from "@/lib/auth";
+import { setTokens } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,26 +20,11 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, pin }),
-      });
-      
-      console.log("Login response:", res.status);
-      
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.message || `Error: ${res.status}`);
-        return;
-      }
-      
-      const data = await res.json();
-      api.setTokens(data.accessToken, data.refreshToken);
+      const data = await authApi.login(email, pin);
+      setTokens(data.accessToken, data.refreshToken);
       router.push("/");
     } catch (e) {
-      console.error("Login error:", e);
-      setError("Cannot reach server");
+      setError(e instanceof Error ? e.message : "Login failed");
     } finally {
       setLoading(false);
     }
@@ -48,38 +34,10 @@ export default function LoginPage() {
     try {
       setError("");
       const redirectUrl = `${window.location.origin}/auth/google/callback`;
-      const res = await fetch(`/api/auth/google/start?redirect_url=${encodeURIComponent(redirectUrl)}`);
-      
-      console.log("OAuth response status:", res.status);
-      console.log("OAuth response OK:", res.ok);
-      console.log("Content-Type:", res.headers.get("content-type"));
-      
-      if (!res.ok) {
-        const text = await res.text();
-        console.log("Error response text:", text);
-        setError(`Error: ${res.status}`);
-        return;
-      }
-      
-      const text = await res.text();
-      console.log("Response text length:", text.length);
-      
-      if (!text) {
-        setError("Empty response from server");
-        return;
-      }
-      
-      const data = JSON.parse(text);
-      console.log("Parsed data:", data);
-      
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setError("No OAuth URL in response");
-      }
+      const data = await authApi.googleStart(redirectUrl);
+      window.location.href = data.url;
     } catch (e) {
-      console.error("OAuth fetch error:", e);
-      setError("Cannot reach server. Please try again.");
+      setError(e instanceof Error ? e.message : "Failed to start Google login");
     }
   };
 

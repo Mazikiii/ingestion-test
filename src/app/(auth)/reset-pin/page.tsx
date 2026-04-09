@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import api from "@/lib/api";
+import { authApi } from "@/lib/auth";
+import { setTokens } from "@/lib/api";
 
 type Step = "email" | "otp" | "newPin";
 
@@ -24,15 +25,10 @@ export default function ResetPinPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.post("/auth/reset-pin/request", { email });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.message || "Failed to send code");
-        return;
-      }
+      await authApi.resetPinRequest(email);
       setStep("otp");
     } catch (e) {
-      setError("Something went wrong");
+      setError(e instanceof Error ? e.message : "Failed to send code");
     } finally {
       setLoading(false);
     }
@@ -46,15 +42,10 @@ export default function ResetPinPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.post("/auth/reset-pin/verify", { email, otp });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.message || "Invalid code");
-        return;
-      }
+      await authApi.resetPinVerify(email, otp);
       setStep("newPin");
     } catch (e) {
-      setError("Invalid code");
+      setError(e instanceof Error ? e.message : "Invalid code");
     } finally {
       setLoading(false);
     }
@@ -72,17 +63,11 @@ export default function ResetPinPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.post("/auth/reset-pin", { pin, confirmPin });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.message || "Failed to reset PIN");
-        return;
-      }
-      const data = await res.json();
-      api.setTokens(data.accessToken, data.refreshToken);
+      const data = await authApi.resetPin(pin, confirmPin);
+      setTokens(data.accessToken, data.refreshToken);
       router.push("/home");
     } catch (e) {
-      setError("Something went wrong");
+      setError(e instanceof Error ? e.message : "Failed to reset PIN");
     } finally {
       setLoading(false);
     }

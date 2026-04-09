@@ -65,6 +65,11 @@ async function readBodyIfNeeded(request: Request, method: string): Promise<Array
   return body.byteLength > 0 ? body : undefined;
 }
 
+function isJsonResponse(headers: Headers): boolean {
+  const contentType = headers.get("content-type");
+  return contentType?.includes("application/json") ?? false;
+}
+
 async function proxyRequest(request: Request, context: RouteContext, method: string) {
   const { path } = await context.params;
   const targetUrl = buildTargetUrl(request, path);
@@ -78,18 +83,35 @@ async function proxyRequest(request: Request, context: RouteContext, method: str
       redirect: "manual",
     });
 
-    return new Response(upstream.body, {
+    const contentType = upstream.headers.get("content-type");
+    const isChunked = upstream.headers.get("transfer-encoding") === "chunked";
+    const contentLength = upstream.headers.get("content-length");
+
+    let body: BodyInit | null = upstream.body;
+
+    if (isChunked || !contentLength) {
+      const text = await upstream.text();
+      body = text;
+    }
+
+    const responseHeaders = buildDownstreamHeaders(upstream.headers);
+    if (isJsonResponse(upstream.headers)) {
+      responseHeaders.set("content-type", "application/json");
+    }
+
+    return new Response(body, {
       status: upstream.status,
       statusText: upstream.statusText,
-      headers: buildDownstreamHeaders(upstream.headers),
+      headers: responseHeaders,
     });
-  } catch {
+  } catch (error) {
+    console.error("Proxy error:", error);
     return Response.json(
       {
         error: "Failed to reach backend API.",
         target: targetUrl,
       },
-      { status: 502 },
+      { status: 502 }
     );
   }
 }

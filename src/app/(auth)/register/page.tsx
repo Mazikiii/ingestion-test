@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import api from "@/lib/api";
+import { authApi } from "@/lib/auth";
+import { setTokens } from "@/lib/api";
 
 type Step = "email" | "otp";
 
@@ -23,27 +24,11 @@ export default function RegisterPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      
-      console.log("Register response:", res.status, res.statusText);
-      
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.message || `Error: ${res.status}`);
-        return;
-      }
-      
-      const data = await res.json();
-      console.log("Register data:", data);
+      await authApi.register(email);
       setMessage("Check your email for the code");
       setStep("otp");
     } catch (e) {
-      console.error("Register error:", e);
-      setError("Cannot reach server");
+      setError(e instanceof Error ? e.message : "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -57,27 +42,11 @@ export default function RegisterPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp }),
-      });
-      
-      console.log("Verify response:", res.status, res.statusText);
-      
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.message || `Error: ${res.status}`);
-        return;
-      }
-      
-      const data = await res.json();
-      console.log("Verify data:", data);
-      api.setTokens(data.accessToken, data.refreshToken);
+      const data = await authApi.verifyOtp(email, otp);
+      setTokens(data.accessToken, data.refreshToken);
       router.push("/onboarding");
     } catch (e) {
-      console.error("Verify error:", e);
-      setError("Cannot reach server");
+      setError(e instanceof Error ? e.message : "Verification failed");
     } finally {
       setLoading(false);
     }
@@ -85,24 +54,12 @@ export default function RegisterPage() {
 
   const handleGoogleRegister = async () => {
     try {
+      setError("");
       const redirectUrl = `${window.location.origin}/auth/google/callback`;
-      const res = await fetch(`/api/auth/google/start?redirect_url=${encodeURIComponent(redirectUrl)}`);
-      
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.message || `Error: ${res.status}`);
-        return;
-      }
-      
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setError("No OAuth URL received");
-      }
+      const data = await authApi.googleStart(redirectUrl);
+      window.location.href = data.url;
     } catch (e) {
-      console.error(e);
-      setError("Failed to connect. Check your connection.");
+      setError(e instanceof Error ? e.message : "Failed to start Google login");
     }
   };
 
