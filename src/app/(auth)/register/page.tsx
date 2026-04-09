@@ -33,7 +33,12 @@ export default function RegisterPage() {
     setLoading(true);
     setError("");
     try {
-      await authApi.register(email);
+      const data = await authApi.register(email);
+      if (data.registrationStatus && data.registrationStatus !== "not_verified") {
+        const redirectPath = getAuthRedirectPath(data.registrationStatus);
+        router.push(redirectPath);
+        return;
+      }
       setMessage("Check your email for the code");
       setStep("otp");
     } catch (e) {
