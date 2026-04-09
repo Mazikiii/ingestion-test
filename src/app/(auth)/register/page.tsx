@@ -65,15 +65,23 @@ export default function RegisterPage() {
   const handleGoogleRegister = async () => {
     try {
       const redirectUrl = `${window.location.origin}/auth/google/callback`;
-      const res = await api.get(`/auth/google/start?redirect_url=${encodeURIComponent(redirectUrl)}`);
+      const res = await fetch(`/api/auth/google/start?redirect_url=${encodeURIComponent(redirectUrl)}`);
+      
       if (!res.ok) {
-        setError("Failed to start Google login");
+        const data = await res.json().catch(() => ({}));
+        setError(data.message || `Error: ${res.status}`);
         return;
       }
+      
       const data = await res.json();
-      window.location.href = data.url;
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setError("No OAuth URL received");
+      }
     } catch (e) {
-      setError("Something went wrong");
+      console.error(e);
+      setError("Failed to connect. Check your connection.");
     }
   };
 
