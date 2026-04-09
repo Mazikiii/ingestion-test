@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { authApi } from "@/lib/auth";
-import { setTokens } from "@/lib/api";
+import { ApiError, authApi } from "@/lib/auth";
+import { markPinSetupRequired, setTokens } from "@/lib/api";
 
 type Step = "email" | "otp";
 
@@ -28,7 +28,12 @@ export default function RegisterPage() {
       setMessage("Check your email for the code");
       setStep("otp");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Registration failed");
+      if (e instanceof ApiError && e.status === 409) {
+        setMessage("Email already exists. Enter your OTP if you have it, or use Resend Code.");
+        setStep("otp");
+      } else {
+        setError(e instanceof Error ? e.message : "Registration failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -42,7 +47,11 @@ export default function RegisterPage() {
       await authApi.register(email);
       setMessage("New code sent to your email");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to resend code");
+      if (e instanceof ApiError && e.status === 409) {
+        setMessage("This email is already registered. Enter OTP if available.");
+      } else {
+        setError(e instanceof Error ? e.message : "Failed to resend code");
+      }
     } finally {
       setLoading(false);
     }
@@ -58,6 +67,7 @@ export default function RegisterPage() {
     try {
       const data = await authApi.verifyOtp(email, otp);
       setTokens(data.accessToken, data.refreshToken);
+      markPinSetupRequired();
       router.push("/onboarding");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Verification failed");
@@ -157,6 +167,10 @@ export default function RegisterPage() {
           >
             Back
           </button>
+
+          <p className="text-center" style={{ marginTop: 12, fontSize: 14 }}>
+            <span className="link" onClick={() => router.push("/login")}>Already verified? Sign in</span>
+          </p>
         </>
       )}
     </div>

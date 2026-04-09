@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import api, { formatNaira } from "@/lib/api";
 
 type InsightDetail = {
   id: string;
+  cycle_start?: string;
+  cycle_end?: string;
   period_start: string;
   period_end: string;
   status: string;
@@ -44,9 +46,11 @@ export default function InsightDetailPage() {
 
 function InsightDetailContent() {
   const router = useRouter();
+  const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
-  const id = searchParams.get("id");
-  const type = searchParams.get("type") || "weeks";
+  const id = params.id;
+  const typeParam = searchParams.get("type");
+  const type = typeParam === "cycles" ? "cycles" : "weeks";
   
   const [insight, setInsight] = useState<InsightDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -111,7 +115,7 @@ function InsightDetailContent() {
       </header>
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <p className="period">{insight.period_start} - {insight.period_end}</p>
+        <p className="period">{(insight.period_start || insight.cycle_start)} - {(insight.period_end || insight.cycle_end)}</p>
         <p className="total-spent">{formatNaira(insight.total_spent_kobo)}</p>
         {insight.comparison && (
           <p className={`comparison ${insight.comparison.direction}`}>

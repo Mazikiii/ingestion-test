@@ -1,8 +1,9 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import api from "@/lib/api";
 
 const NAV_ITEMS = [
   { href: "/home", label: "Home" },
@@ -12,6 +13,29 @@ const NAV_ITEMS = [
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function guard() {
+      const token = api.getAccessToken();
+      if (!token) {
+        router.replace("/login");
+        return;
+      }
+
+      const res = await api.get("/profile").catch(() => null);
+      if (!res || !res.ok) {
+        if (!cancelled) router.replace("/login");
+      }
+    }
+
+    void guard();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   return (
     <div className="container">

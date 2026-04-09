@@ -1,4 +1,5 @@
 const API_BASE = "/api";
+const PIN_SETUP_KEY = "neroPinSetupComplete";
 
 function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -18,6 +19,22 @@ export function setTokens(accessToken: string, refreshToken: string) {
 export function clearTokens() {
   sessionStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
+  localStorage.removeItem(PIN_SETUP_KEY);
+}
+
+export function markPinSetupRequired() {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(PIN_SETUP_KEY, "false");
+}
+
+export function markPinSetupCompleted() {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(PIN_SETUP_KEY, "true");
+}
+
+export function hasPendingPinSetup(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(PIN_SETUP_KEY) === "false";
 }
 
 async function refreshAccessToken(): Promise<boolean> {
@@ -62,7 +79,8 @@ async function fetchWithAuth(
     headers["Authorization"] = `Bearer ${accessToken}`;
   }
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
   });
@@ -91,7 +109,7 @@ async function fetchWithAuth(
       const newAccessToken = getAccessToken();
       headers["Authorization"] = `Bearer ${newAccessToken}`;
 
-      return fetch(`${API_BASE}${endpoint}`, {
+      return fetch(`${API_BASE}${path}`, {
         ...options,
         headers,
       });
@@ -147,6 +165,9 @@ const api = {
   setTokens,
   clearTokens,
   getAccessToken,
+  markPinSetupRequired,
+  markPinSetupCompleted,
+  hasPendingPinSetup,
 };
 
 export default api;

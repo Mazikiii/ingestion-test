@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/auth";
-import { setTokens } from "@/lib/api";
+import { markPinSetupCompleted, setTokens } from "@/lib/api";
 
 type Step = "email" | "otp" | "newPin";
 
@@ -65,6 +65,7 @@ export default function ResetPinPage() {
     try {
       const data = await authApi.resetPin(pin, confirmPin);
       setTokens(data.accessToken, data.refreshToken);
+      markPinSetupCompleted();
       router.push("/home");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to reset PIN");

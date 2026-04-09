@@ -6,8 +6,10 @@ import api from "@/lib/api";
 
 type Insight = {
   id: string;
-  period_start: string;
-  period_end: string;
+  cycle_start?: string;
+  cycle_end?: string;
+  period_start?: string;
+  period_end?: string;
   status: "building" | "ready" | "no_activity" | "played";
   total_spent_kobo: string;
   days_tracked?: number;
@@ -16,14 +18,26 @@ type Insight = {
 };
 
 type InsightsData = {
-  current: Insight;
-  previous: Insight[];
+  currentWeek: Insight | null;
+  previousWeeks: Insight[];
+  currentCycle: Insight | null;
+  previousCycles: Insight[];
 };
+
+type InsightTab = "weeks" | "cycles";
 
 export default function InsightsPage() {
   const router = useRouter();
   const [data, setData] = useState<InsightsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<InsightTab>("weeks");
+
+  const getStart = (insight: Insight) => insight.period_start || insight.cycle_start || "";
+  const getEnd = (insight: Insight) => insight.period_end || insight.cycle_end || "";
+
+  const navigateToDetail = (insight: Insight, type: InsightTab) => {
+    router.push(`/insights/${insight.id}?type=${type}`);
+  };
 
   useEffect(() => {
     loadData();
@@ -36,13 +50,15 @@ export default function InsightsPage() {
         api.get("/insights/cycles"),
       ]);
 
-      if (weeksRes.ok) {
-        const weeksData = await weeksRes.json();
-        setData({
-          current: { ...weeksData.current, type: "week" },
-          previous: (weeksData.previous || []).map((p: Insight) => ({ ...p, type: "week" })),
-        });
-      }
+      const weeksData = weeksRes.ok ? await weeksRes.json() : { current: null, previous: [] };
+      const cyclesData = cyclesRes.ok ? await cyclesRes.json() : { current: null, previous: [] };
+
+      setData({
+        currentWeek: weeksData.current || null,
+        previousWeeks: weeksData.previous || [],
+        currentCycle: cyclesData.current || null,
+        previousCycles: cyclesData.previous || [],
+      });
     } catch (e) {
       // Silent fail
     } finally {
@@ -64,46 +80,79 @@ export default function InsightsPage() {
         <h1 className="logo">Insights</h1>
       </header>
 
+      <div className="tab-row">
+        <button
+          className={`tab-btn ${tab === "weeks" ? "active" : ""}`}
+          onClick={() => setTab("weeks")}
+          type="button"
+        >
+          Weekly
+        </button>
+        <button
+          className={`tab-btn ${tab === "cycles" ? "active" : ""}`}
+          onClick={() => setTab("cycles")}
+          type="button"
+        >
+          Cycle
+        </button>
+      </div>
+
       <div className="section">
-        <h3 className="section-title">This Week</h3>
-        {data?.current && (
+        <h3 className="section-title">{tab === "weeks" ? "Current Week" : "Current Cycle"}</h3>
+        {((tab === "weeks" ? data?.currentWeek : data?.currentCycle)) && (
           <div
             className="insight-card card"
-            onClick={() => router.push(`/insights/${data.current.id}?type=week`)}
+            onClick={() =>
+              navigateToDetail(
+                (tab === "weeks" ? data?.currentWeek : data?.currentCycle) as Insight,
+                tab
+              )
+            }
           >
             <div className="insight-header">
               <span className="insight-period">
-                {data.current.period_start} - {data.current.period_end}
+                {getStart((tab === "weeks" ? data?.currentWeek : data?.currentCycle) as Insight)} - {getEnd((tab === "weeks" ? data?.currentWeek : data?.currentCycle) as Insight)}
               </span>
-              <span className={`insight-status ${data.current.status}`}>
-                {data.current.status}
+              <span className={`insight-status ${(tab === "weeks" ? data?.currentWeek : data?.currentCycle)?.status}`}>
+                {(tab === "weeks" ? data?.currentWeek : data?.currentCycle)?.status}
               </span>
             </div>
             <p className="insight-spent">
-              N{(parseInt(data.current.total_spent_kobo, 10) / 100).toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+              N{(
+                parseInt(
+                  String((tab === "weeks" ? data?.currentWeek : data?.currentCycle)?.total_spent_kobo || "0"),
+                  10
+                ) / 100
+              ).toLocaleString("en-NG", { minimumFractionDigits: 2 })}
             </p>
-            {data.current.status === "building" && data.current.days_tracked !== undefined && (
-              <p className="insight-days">{data.current.days_tracked}/{data.current.total_days} days tracked</p>
+            {(tab === "weeks" ? data?.currentWeek : data?.currentCycle)?.status === "building" &&
+              (tab === "weeks" ? data?.currentWeek : data?.currentCycle)?.days_tracked !== undefined && (
+              <p className="insight-days">
+                {(tab === "weeks" ? data?.currentWeek : data?.currentCycle)?.days_tracked}/
+                {(tab === "weeks" ? data?.currentWeek : data?.currentCycle)?.total_days} days tracked
+              </p>
             )}
           </div>
         )}
       </div>
 
       <div className="section">
-        <h3 className="section-title">Previous Weeks</h3>
-        {data?.previous?.length === 0 ? (
-          <p style={{ color: "var(--gray-500)", fontSize: 14 }}>No previous insights</p>
+        <h3 className="section-title">{tab === "weeks" ? "Previous Weeks" : "Previous Cycles"}</h3>
+        {(tab === "weeks" ? data?.previousWeeks : data?.previousCycles)?.length === 0 ? (
+          <p style={{ color: "var(--gray-500)", fontSize: 14 }}>
+            No previous {tab === "weeks" ? "weekly" : "cycle"} insights
+          </p>
         ) : (
           <div className="insights-list">
-            {data?.previous?.map((insight) => (
+            {(tab === "weeks" ? data?.previousWeeks : data?.previousCycles)?.map((insight) => (
               <div
                 key={insight.id}
                 className="insight-card card"
-                onClick={() => router.push(`/insights/${insight.id}?type=week`)}
+                onClick={() => navigateToDetail(insight, tab)}
               >
                 <div className="insight-header">
                   <span className="insight-period">
-                    {insight.period_start} - {insight.period_end}
+                    {getStart(insight)} - {getEnd(insight)}
                   </span>
                   <span className={`insight-status ${insight.status}`}>
                     {insight.status}
@@ -119,6 +168,26 @@ export default function InsightsPage() {
       </div>
 
       <style jsx>{`
+        .tab-row {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+        .tab-btn {
+          flex: 1;
+          padding: 10px 12px;
+          border: 1px solid var(--gray-300);
+          border-radius: 10px;
+          background: transparent;
+          color: var(--foreground);
+          font-size: 14px;
+          cursor: pointer;
+        }
+        .tab-btn.active {
+          background: var(--foreground);
+          color: var(--background);
+          border-color: var(--foreground);
+        }
         .section {
           margin-bottom: 24px;
         }

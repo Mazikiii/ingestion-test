@@ -13,6 +13,8 @@ const HOP_BY_HOP_HEADERS = new Set([
   "trailer",
   "transfer-encoding",
   "upgrade",
+  "content-encoding",
+  "content-length",
 ]);
 
 type RouteContext = {
@@ -65,11 +67,6 @@ async function readBodyIfNeeded(request: Request, method: string): Promise<Array
   return body.byteLength > 0 ? body : undefined;
 }
 
-function isJsonResponse(headers: Headers): boolean {
-  const contentType = headers.get("content-type");
-  return contentType?.includes("application/json") ?? false;
-}
-
 async function proxyRequest(request: Request, context: RouteContext, method: string) {
   const { path } = await context.params;
   const targetUrl = buildTargetUrl(request, path);
@@ -83,21 +80,8 @@ async function proxyRequest(request: Request, context: RouteContext, method: str
       redirect: "manual",
     });
 
-    const contentType = upstream.headers.get("content-type");
-    const isChunked = upstream.headers.get("transfer-encoding") === "chunked";
-    const contentLength = upstream.headers.get("content-length");
-
-    let body: BodyInit | null = upstream.body;
-
-    if (isChunked || !contentLength) {
-      const text = await upstream.text();
-      body = text;
-    }
-
+    const body = await upstream.arrayBuffer();
     const responseHeaders = buildDownstreamHeaders(upstream.headers);
-    if (isJsonResponse(upstream.headers)) {
-      responseHeaders.set("content-type", "application/json");
-    }
 
     return new Response(body, {
       status: upstream.status,

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import api from "./api";
+import api, { hasPendingPinSetup } from "./api";
 
 const SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
 
@@ -42,7 +42,12 @@ export function useSession() {
       if (res.ok) {
         const data = await res.json();
         setIsAuthenticated(true);
-        setOnboardingCompleted(data.profile?.onboarding_completed ?? false);
+        const completed = data.profile?.onboarding_completed ?? false;
+        if (completed && hasPendingPinSetup()) {
+          setOnboardingCompleted(false);
+        } else {
+          setOnboardingCompleted(completed);
+        }
       } else {
         setIsAuthenticated(false);
       }

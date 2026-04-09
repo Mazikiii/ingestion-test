@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import api, { setTokens } from "@/lib/api";
+import api, { handleApiResponse, markPinSetupCompleted, setTokens } from "@/lib/api";
 import { authApi } from "@/lib/auth";
 
 type OnboardingStep = "profile" | "budget" | "bank" | "email_connect" | "set_pin" | "done";
@@ -11,7 +11,9 @@ type Profile = {
   full_name?: string;
   age_group?: string;
   life_stage?: string;
+  language?: string;
   onboarding_step?: string;
+  onboarding_completed?: boolean;
 };
 
 type Bank = {
@@ -57,24 +59,60 @@ export default function OnboardingPage() {
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
 
+  const normalizeStep = (raw?: string): OnboardingStep => {
+    if (!raw || raw === "language") return "profile";
+    if (raw === "banks") return "bank";
+    if (raw === "bank") return "bank";
+    if (raw === "done") return "set_pin";
+    if (raw === "set_pin") return "set_pin";
+    if (raw === "profile" || raw === "budget" || raw === "bank" || raw === "email_connect") {
+      return raw;
+    }
+    return "profile";
+  };
+
+  const advanceStep = async () => {
+    const res = await api.patch("/profile", { advance_step: true });
+    await handleApiResponse<{ profile: Profile }>(res);
+  };
+
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
-      const [profileRes, banksRes] = await Promise.all([
+      const [profileRes, banksRes, gmailStatusRes] = await Promise.all([
         api.get("/profile"),
         api.get("/banks"),
+        api.get("/ingestion/gmail/status"),
       ]);
 
       if (profileRes.ok) {
         const data = await profileRes.json();
-        setProfile(data.profile);
+        const nextProfile: Profile = data.profile;
+        setProfile(nextProfile);
+        if (nextProfile.full_name) setFullName(nextProfile.full_name);
+        if (nextProfile.age_group) setAgeGroup(nextProfile.age_group);
+        if (nextProfile.life_stage) setLifeStage(nextProfile.life_stage);
+
+        if (!nextProfile.language) {
+          const languageRes = await api.patch("/profile", { language: "en" });
+          if (languageRes.ok) {
+            const languageData = await languageRes.json();
+            setProfile(languageData.profile);
+          }
+        }
       }
 
       if (banksRes.ok) {
-        setBanks(await banksRes.json());
+        const banksData = await banksRes.json();
+        setBanks(Array.isArray(banksData) ? banksData : banksData.banks || []);
+      }
+
+      if (gmailStatusRes.ok) {
+        const gmailStatus = await gmailStatusRes.json();
+        setGmailConnected(Boolean(gmailStatus.connected));
       }
     } catch (e) {
       setError("Failed to load data");
@@ -84,11 +122,7 @@ export default function OnboardingPage() {
   };
 
   const getCurrentStep = (): OnboardingStep => {
-    if (!profile) return "profile";
-    const step = profile.onboarding_step || "profile";
-    if (step === "done") return "profile";
-    if (!STEPS.includes(step as OnboardingStep)) return "profile";
-    return step as OnboardingStep;
+    return normalizeStep(profile?.onboarding_step);
   };
 
   const currentStep = getCurrentStep();
@@ -111,16 +145,23 @@ export default function OnboardingPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.patch("/profile", { full_name: fullName.trim(), age_group: ageGroup, life_stage: lifeStage });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.message || "Failed to save");
-        return;
+      const res = await api.patch("/profile", {
+        full_name: fullName.trim(),
+        age_group: ageGroup,
+        life_stage: lifeStage,
+      });
+      const data = await handleApiResponse<{ profile: Profile }>(res);
+
+      try {
+        await advanceStep();
+      } catch {
+        // Some backends auto-advance on profile patch
       }
-      const data = await res.json();
+
       setProfile(data.profile);
+      await loadData();
     } catch (e) {
-      setError("Something went wrong");
+      setError(e instanceof Error ? e.message : "Failed to save profile");
     } finally {
       setLoading(false);
     }
@@ -136,15 +177,17 @@ export default function OnboardingPage() {
     setError("");
     try {
       const res = await api.post("/onboarding/budget", { monthly_budget_naira: amount });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.message || "Failed to set budget");
-        return;
+      await handleApiResponse(res);
+
+      try {
+        await advanceStep();
+      } catch {
+        // Some backends auto-advance on budget
       }
-      const data = await res.json();
-      setProfile(data.profile);
+
+      await loadData();
     } catch (e) {
-      setError("Something went wrong");
+      setError(e instanceof Error ? e.message : "Failed to set budget");
     } finally {
       setLoading(false);
     }
@@ -159,14 +202,17 @@ export default function OnboardingPage() {
     setError("");
     try {
       const res = await api.post("/onboarding/bank", { bank_id: selectedBankId });
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.message || "Failed to save bank");
-        return;
+      await handleApiResponse(res);
+
+      try {
+        await advanceStep();
+      } catch {
+        // Some backends auto-advance on bank
       }
+
       await loadData();
     } catch (e) {
-      setError("Something went wrong");
+      setError(e instanceof Error ? e.message : "Failed to save bank");
     } finally {
       setLoading(false);
     }
@@ -177,15 +223,10 @@ export default function OnboardingPage() {
     setError("");
     try {
       const res = await api.get("/ingestion/gmail/connect");
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.message || "Failed to get link");
-        return;
-      }
-      const data = await res.json();
+      const data = await handleApiResponse<{ url: string }>(res);
       setGmailUrl(data.url);
     } catch (e) {
-      setError("Something went wrong");
+      setError(e instanceof Error ? e.message : "Failed to get Gmail link");
     } finally {
       setLoading(false);
     }
@@ -196,19 +237,20 @@ export default function OnboardingPage() {
     setError("");
     try {
       const res = await api.get("/ingestion/gmail/status");
-      if (res.ok) {
-        const data = await res.json();
-        setGmailConnected(data.connected);
-        if (data.connected) {
-          const profileRes = await api.patch("/profile", { advance_step: true });
-          if (profileRes.ok) {
-            const data = await profileRes.json();
-            setProfile(data.profile);
-          }
+      const data = await handleApiResponse<{ connected: boolean }>(res);
+      setGmailConnected(data.connected);
+      if (data.connected) {
+        try {
+          await advanceStep();
+        } catch {
+          // Some backends auto-advance when gmail is connected
         }
+        await loadData();
+      } else {
+        setError("Gmail is not connected yet. Complete Google consent and try again.");
       }
     } catch (e) {
-      setError("Failed to check status");
+      setError(e instanceof Error ? e.message : "Failed to check Gmail status");
     } finally {
       setLoading(false);
     }
@@ -228,6 +270,7 @@ export default function OnboardingPage() {
     try {
       const data = await authApi.setPin(pin, confirmPin);
       setTokens(data.accessToken, data.refreshToken);
+      markPinSetupCompleted();
       router.push("/home");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to set PIN");
@@ -246,7 +289,14 @@ export default function OnboardingPage() {
 
   return (
     <div className="container">
-      <div style={{ marginBottom: 32 }} />
+      <div style={{ marginBottom: 24 }}>
+        <div className="progress-bar">
+          <div className="progress-fill" style={{ width: `${Math.max(progress, 5)}%` }} />
+        </div>
+        <p style={{ fontSize: 12, color: "var(--gray-500)", marginTop: 8, textAlign: "center" }}>
+          Step {Math.min(currentIndex + 1, STEPS.length)} of {STEPS.length}
+        </p>
+      </div>
 
       {error && <p className="error">{error}</p>}
 
@@ -339,6 +389,10 @@ export default function OnboardingPage() {
           <h2 className="title">Connect your Gmail</h2>
           <p className="subtitle">We read your bank alert emails to track spending</p>
 
+          {gmailConnected && (
+            <p className="success" style={{ marginBottom: 12 }}>Gmail connected successfully.</p>
+          )}
+
           {!gmailUrl ? (
             <button className="btn btn-primary btn-full" onClick={handleGetGmailLink} disabled={loading}>
               {loading ? "Please wait..." : "Get Link"}
@@ -400,21 +454,6 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      <style jsx>{`
-        .progress-bar {
-          width: 100%;
-          height: 4px;
-          background: var(--gray-200);
-          border-radius: 999px;
-          overflow: hidden;
-        }
-        .progress-fill {
-          height: 100%;
-          background: var(--foreground);
-          border-radius: 999px;
-          transition: width 0.3s ease;
-        }
-      `}</style>
     </div>
   );
 }
