@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { markPinSetupRequired, setTokens } from "@/lib/api";
+import { getAuthRedirectPath } from "@/lib/auth";
 
 export default function GoogleCallbackPage() {
   return (
@@ -29,15 +30,19 @@ function GoogleCallbackContent() {
   useEffect(() => {
     const accessToken = searchParams.get("accessToken");
     const refreshToken = searchParams.get("refreshToken");
-    const isNewUser = searchParams.get("isNewUser");
+    const registrationStatus = searchParams.get("registrationStatus") as "not_verified" | "no_profile" | "onboarding_incomplete" | "pin_not_set" | "complete" | null;
 
     if (accessToken && refreshToken) {
       setTokens(accessToken, refreshToken);
-      if (isNewUser === "true") {
+      const redirectPath = getAuthRedirectPath(registrationStatus || undefined);
+      if (registrationStatus === "not_verified") {
         markPinSetupRequired();
-        router.replace("/onboarding");
+        router.replace("/register");
+      } else if (registrationStatus === "pin_not_set" || registrationStatus === "onboarding_incomplete") {
+        markPinSetupRequired();
+        router.replace(redirectPath);
       } else {
-        router.replace("/");
+        router.replace(redirectPath);
       }
       return;
     }

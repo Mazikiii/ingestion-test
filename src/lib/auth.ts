@@ -10,6 +10,26 @@ export class ApiError extends Error {
   }
 }
 
+export type RegistrationStatus = 
+  | "not_verified" 
+  | "no_profile" 
+  | "onboarding_incomplete" 
+  | "pin_not_set" 
+  | "complete";
+
+interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  userId: string;
+  registrationStatus?: RegistrationStatus;
+}
+
+interface RegisterResponse {
+  userId: string;
+  message: string;
+  registrationStatus?: RegistrationStatus;
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let message = `Error: ${res.status}`;
@@ -31,7 +51,7 @@ export const authApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
-    return handleResponse<{ userId: string; message: string }>(res);
+    return handleResponse<RegisterResponse>(res);
   },
 
   verifyOtp: async (email: string, otp: string) => {
@@ -40,7 +60,7 @@ export const authApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, otp }),
     });
-    return handleResponse<{ accessToken: string; refreshToken: string; userId: string }>(res);
+    return handleResponse<AuthResponse>(res);
   },
 
   login: async (email: string, pin: string) => {
@@ -49,7 +69,7 @@ export const authApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, pin }),
     });
-    return handleResponse<{ accessToken: string; refreshToken: string; userId: string }>(res);
+    return handleResponse<AuthResponse>(res);
   },
 
   googleStart: async (redirectUrl: string) => {
@@ -84,7 +104,7 @@ export const authApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pin, confirmPin }),
     });
-    return handleResponse<{ accessToken: string; refreshToken: string; userId: string }>(res);
+    return handleResponse<AuthResponse>(res);
   },
 
   setPin: async (pin: string, confirmPin: string) => {
@@ -93,8 +113,25 @@ export const authApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pin, confirmPin }),
     });
-    return handleResponse<{ accessToken: string; refreshToken: string; userId: string }>(res);
+    return handleResponse<AuthResponse>(res);
   },
 };
+
+export function getAuthRedirectPath(status?: RegistrationStatus): string {
+  switch (status) {
+    case "not_verified":
+      return "/register";
+    case "no_profile":
+      return "/onboarding";
+    case "onboarding_incomplete":
+      return "/onboarding";
+    case "pin_not_set":
+      return "/onboarding";
+    case "complete":
+      return "/home";
+    default:
+      return "/onboarding";
+  }
+}
 
 export default authApi;

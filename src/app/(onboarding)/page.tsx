@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api, { handleApiResponse, markPinSetupCompleted, setTokens } from "@/lib/api";
-import { authApi } from "@/lib/auth";
+import { authApi, getAuthRedirectPath } from "@/lib/auth";
 
 type OnboardingStep = "profile" | "budget" | "bank" | "email_connect" | "set_pin" | "done";
 
@@ -271,7 +271,8 @@ export default function OnboardingPage() {
       const data = await authApi.setPin(pin, confirmPin);
       setTokens(data.accessToken, data.refreshToken);
       markPinSetupCompleted();
-      router.push("/home");
+      const redirectPath = getAuthRedirectPath(data.registrationStatus);
+      router.push(redirectPath);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to set PIN");
     } finally {

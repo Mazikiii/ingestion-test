@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { authApi } from "@/lib/auth";
+import { authApi, getAuthRedirectPath } from "@/lib/auth";
 import { markPinSetupCompleted, setTokens } from "@/lib/api";
 
 export default function LoginPage() {
@@ -23,7 +23,8 @@ export default function LoginPage() {
       const data = await authApi.login(email, pin);
       setTokens(data.accessToken, data.refreshToken);
       markPinSetupCompleted();
-      router.push("/");
+      const redirectPath = getAuthRedirectPath(data.registrationStatus);
+      router.push(redirectPath);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Login failed");
     } finally {

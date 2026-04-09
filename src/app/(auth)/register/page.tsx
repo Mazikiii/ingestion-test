@@ -2,10 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ApiError, authApi } from "@/lib/auth";
+import { ApiError, authApi, getAuthRedirectPath, RegistrationStatus } from "@/lib/auth";
 import { markPinSetupRequired, setTokens } from "@/lib/api";
 
 type Step = "email" | "otp";
+
+function navigateByStatus(status?: RegistrationStatus, accessToken?: string, refreshToken?: string) {
+  const path = getAuthRedirectPath(status);
+  if (accessToken && refreshToken) {
+    setTokens(accessToken, refreshToken);
+    markPinSetupRequired();
+  }
+  return path;
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -66,9 +75,8 @@ export default function RegisterPage() {
     setError("");
     try {
       const data = await authApi.verifyOtp(email, otp);
-      setTokens(data.accessToken, data.refreshToken);
-      markPinSetupRequired();
-      router.push("/onboarding");
+      const redirectPath = navigateByStatus(data.registrationStatus, data.accessToken, data.refreshToken);
+      router.push(redirectPath);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Verification failed");
     } finally {
