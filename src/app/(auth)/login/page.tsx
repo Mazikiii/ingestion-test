@@ -42,20 +42,31 @@ export default function LoginPage() {
       const res = await fetch(`/api/auth/google/start?redirect_url=${encodeURIComponent(redirectUrl)}`);
       
       console.log("OAuth response status:", res.status);
+      console.log("OAuth response OK:", res.ok);
+      console.log("Content-Type:", res.headers.get("content-type"));
       
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        console.log("OAuth error data:", data);
-        setError(data.message || `Error: ${res.status}`);
+        const text = await res.text();
+        console.log("Error response text:", text);
+        setError(`Error: ${res.status}`);
         return;
       }
       
-      const data = await res.json();
-      console.log("OAuth url received:", data.url ? "yes" : "no");
+      const text = await res.text();
+      console.log("Response text length:", text.length);
+      
+      if (!text) {
+        setError("Empty response from server");
+        return;
+      }
+      
+      const data = JSON.parse(text);
+      console.log("Parsed data:", data);
+      
       if (data.url) {
         window.location.href = data.url;
       } else {
-        setError("No OAuth URL received");
+        setError("No OAuth URL in response");
       }
     } catch (e) {
       console.error("OAuth fetch error:", e);
