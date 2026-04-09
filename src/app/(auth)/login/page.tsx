@@ -37,24 +37,29 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     try {
+      setError("");
       const redirectUrl = `${window.location.origin}/auth/google/callback`;
       const res = await fetch(`/api/auth/google/start?redirect_url=${encodeURIComponent(redirectUrl)}`);
       
+      console.log("OAuth response status:", res.status);
+      
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        console.log("OAuth error data:", data);
         setError(data.message || `Error: ${res.status}`);
         return;
       }
       
       const data = await res.json();
+      console.log("OAuth url received:", data.url ? "yes" : "no");
       if (data.url) {
         window.location.href = data.url;
       } else {
         setError("No OAuth URL received");
       }
     } catch (e) {
-      console.error(e);
-      setError("Failed to connect. Check your connection.");
+      console.error("OAuth fetch error:", e);
+      setError("Cannot reach server. Please try again.");
     }
   };
 
