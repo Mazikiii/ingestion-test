@@ -251,14 +251,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="container">
-      <div style={{ marginBottom: 24 }}>
-        <div className="progress-bar">
-          <div className="progress-fill" style={{ width: `${progress}%` }} />
-        </div>
-        <p style={{ fontSize: 12, color: "var(--gray-500)", marginTop: 8, textAlign: "center" }}>
-          Step {currentIndex + 1} of {STEPS.length}
-        </p>
-      </div>
+      <div style={{ marginBottom: 32 }} />
 
       {error && <p className="error">{error}</p>}
 
