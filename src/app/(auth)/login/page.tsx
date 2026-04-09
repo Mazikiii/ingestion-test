@@ -19,17 +19,26 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.post("/auth/login", { email, pin });
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, pin }),
+      });
+      
+      console.log("Login response:", res.status);
+      
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.message || "Login failed");
+        const data = await res.json().catch(() => ({}));
+        setError(data.message || `Error: ${res.status}`);
         return;
       }
+      
       const data = await res.json();
       api.setTokens(data.accessToken, data.refreshToken);
       router.push("/");
     } catch (e) {
-      setError("Something went wrong");
+      console.error("Login error:", e);
+      setError("Cannot reach server");
     } finally {
       setLoading(false);
     }
