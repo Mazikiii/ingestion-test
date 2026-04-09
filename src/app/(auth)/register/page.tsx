@@ -34,6 +34,20 @@ export default function RegisterPage() {
     }
   };
 
+  const handleResendOtp = async () => {
+    setLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      await authApi.register(email);
+      setMessage("New code sent to your email");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to resend code");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleVerifyOtp = async () => {
     if (!otp || otp.length !== 4) {
       setError("Enter the 4-digit code");
@@ -126,6 +140,15 @@ export default function RegisterPage() {
 
           <button className="btn btn-primary btn-full" onClick={handleVerifyOtp} disabled={loading}>
             {loading ? "Please wait..." : "Verify"}
+          </button>
+
+          <button
+            className="btn btn-ghost btn-full"
+            onClick={handleResendOtp}
+            disabled={loading}
+            style={{ marginTop: 8 }}
+          >
+            Resend Code
           </button>
 
           <button
