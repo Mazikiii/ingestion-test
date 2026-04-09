@@ -46,6 +46,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 export const authApi = {
   register: async (email: string) => {
+    console.error("[AUTH] register:", email);
     const res = await fetch(`${API_BASE}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -55,6 +56,7 @@ export const authApi = {
   },
 
   verifyOtp: async (email: string, otp: string) => {
+    console.error("[AUTH] verifyOtp:", email, otp);
     const res = await fetch(`${API_BASE}/auth/verify-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
