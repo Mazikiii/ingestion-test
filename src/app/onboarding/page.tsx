@@ -149,26 +149,22 @@ export default function OnboardingPage() {
     setLoading(true);
     setError("");
     try {
-      console.error("[profile] submitting:", { full_name: fullName.trim(), age_group: ageGroup, life_stage: lifeStage });
       const res = await api.patch("/profile", {
         full_name: fullName.trim(),
         age_group: ageGroup,
         life_stage: lifeStage,
       });
-      console.error("[profile] response ok:", res.ok, "status:", res.status);
       const data = await handleApiResponse<{ profile: Profile }>(res);
 
       try {
-        console.error("[profile] calling advanceStep...");
         await advanceStep();
-        console.error("[profile] advanceStep completed");
-      } catch (e) {
-        console.error("[profile] advanceStep error:", e);
+      } catch {
+        // Backend auto-advances
       }
 
       setProfile(data.profile);
+      await loadData();
     } catch (e) {
-      console.error("[profile] submit error:", e);
       setError(e instanceof Error ? e.message : "Failed to save profile");
     } finally {
       setLoading(false);
