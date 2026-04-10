@@ -39,6 +39,9 @@ function buildUpstreamHeaders(request: Request): Headers {
   const authorization = request.headers.get("authorization");
   const accept = request.headers.get("accept");
 
+  headers.set("cache-control", "no-store");
+  headers.set("pragma", "no-cache");
+
   if (contentType) headers.set("content-type", contentType);
   if (authorization) headers.set("authorization", authorization);
   if (accept) headers.set("accept", accept);
@@ -54,6 +57,10 @@ function buildDownstreamHeaders(upstreamHeaders: Headers): Headers {
       headers.set(key, value);
     }
   });
+
+  headers.set("cache-control", "no-store, no-cache, must-revalidate");
+  headers.set("pragma", "no-cache");
+  headers.set("expires", "0");
 
   return headers;
 }

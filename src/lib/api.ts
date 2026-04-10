@@ -83,6 +83,7 @@ async function fetchWithAuth(
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
+    cache: "no-store",
   });
 
   if (res.status === 401) {
@@ -112,6 +113,7 @@ async function fetchWithAuth(
       return fetch(`${API_BASE}${path}`, {
         ...options,
         headers,
+        cache: "no-store",
       });
     }
   }

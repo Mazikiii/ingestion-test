@@ -71,9 +71,10 @@ export default function OnboardingPage() {
     return "profile";
   };
 
-  const advanceStep = async () => {
+  const advanceStep = async (): Promise<Profile> => {
     const res = await api.patch("/profile", { advance_step: true });
-    await handleApiResponse<{ profile: Profile }>(res);
+    const data = await handleApiResponse<{ profile: Profile }>(res);
+    return data.profile;
   };
 
   useEffect(() => {
@@ -151,8 +152,13 @@ export default function OnboardingPage() {
         life_stage: lifeStage,
       });
       const data = await handleApiResponse<{ profile: Profile }>(res);
-      setProfile(data.profile);
-      await loadData();
+      let nextProfile = data.profile;
+
+      if (normalizeStep(nextProfile.onboarding_step) === "profile") {
+        nextProfile = await advanceStep();
+      }
+
+      setProfile(nextProfile);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save profile");
     } finally {
