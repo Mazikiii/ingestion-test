@@ -48,7 +48,6 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 export const authApi = {
   register: async (email: string) => {
-    console.error("[AUTH] register:", email);
     const res = await fetch(`${API_BASE}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -58,7 +57,6 @@ export const authApi = {
   },
 
   verifyOtp: async (email: string, otp: string) => {
-    console.error("[AUTH] verifyOtp:", email, otp);
     const res = await fetch(`${API_BASE}/auth/verify-otp`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -102,24 +100,33 @@ export const authApi = {
     return handleResponse<{ valid: boolean }>(res);
   },
 
-  resetPin: async (pin: string, confirmPin: string) => {
+  resetPin: async (pin: string, confirmPin: string, accessToken?: string) => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
     const res = await fetch(`${API_BASE}/auth/reset-pin`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ pin, confirmPin }),
     });
     return handleResponse<AuthResponse>(res);
   },
 
-  setPin: async (pin: string, confirmPin: string) => {
+  setPin: async (pin: string, confirmPin: string, accessToken?: string) => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
     const res = await fetch(`${API_BASE}/auth/pin`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ pin, confirmPin }),
     });
     return handleResponse<AuthResponse>(res);
   },
 };
+
+export function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem("accessToken");
+}
 
 export function getAuthRedirectPath(status?: RegistrationStatus): string {
   const path = (() => {

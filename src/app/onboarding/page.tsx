@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import api, { handleApiResponse, markPinSetupCompleted, setTokens } from "@/lib/api";
-import { authApi, getAuthRedirectPath } from "@/lib/auth";
+import { authApi, getAccessToken, getAuthRedirectPath } from "@/lib/auth";
 
 type OnboardingStep = "profile" | "budget" | "bank" | "email_connect" | "set_pin" | "done";
 
@@ -272,7 +272,8 @@ export default function OnboardingPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await authApi.setPin(pin, confirmPin);
+      const accessToken = getAccessToken();
+      const data = await authApi.setPin(pin, confirmPin, accessToken ?? undefined);
       setTokens(data.accessToken, data.refreshToken);
       markPinSetupCompleted();
       const redirectPath = getAuthRedirectPath(data.registrationStatus);
@@ -341,7 +342,11 @@ export default function OnboardingPage() {
             </select>
           </div>
 
-          <button className="btn btn-primary btn-full" onClick={handleProfileSubmit} disabled={loading}>
+          <button 
+            className="btn btn-primary btn-full" 
+            onClick={handleProfileSubmit} 
+            disabled={loading || !fullName.trim() || !ageGroup || !lifeStage}
+          >
             {loading ? "Please wait..." : "Continue"}
           </button>
         </div>
@@ -363,7 +368,11 @@ export default function OnboardingPage() {
             />
           </div>
 
-          <button className="btn btn-primary btn-full" onClick={handleBudgetSubmit} disabled={loading}>
+          <button 
+            className="btn btn-primary btn-full" 
+            onClick={handleBudgetSubmit} 
+            disabled={loading || !budget || Number(budget) <= 0}
+          >
             {loading ? "Please wait..." : "Continue"}
           </button>
         </div>
@@ -375,7 +384,12 @@ export default function OnboardingPage() {
           <p className="subtitle">Which bank do you use?</p>
 
           <div className="form-group">
-            <select className="select" value={selectedBankId} onChange={(e) => setSelectedBankId(e.target.value)}>
+            <select 
+              className="select" 
+              value={selectedBankId} 
+              onChange={(e) => setSelectedBankId(e.target.value)}
+              disabled={loading}
+            >
               <option value="">Select your bank</option>
               {banks.map((bank) => (
                 <option key={bank.id} value={bank.id}>{bank.name}</option>
@@ -383,7 +397,11 @@ export default function OnboardingPage() {
             </select>
           </div>
 
-          <button className="btn btn-primary btn-full" onClick={handleBankSubmit} disabled={loading}>
+          <button 
+            className="btn btn-primary btn-full" 
+            onClick={handleBankSubmit} 
+            disabled={loading || !selectedBankId}
+          >
             {loading ? "Please wait..." : "Continue"}
           </button>
         </div>
@@ -416,7 +434,11 @@ export default function OnboardingPage() {
               >
                 Open Google Sign-In
               </a>
-              <button className="btn btn-primary btn-full" onClick={handleCheckGmailStatus} disabled={loading}>
+              <button 
+                className="btn btn-primary btn-full" 
+                onClick={handleCheckGmailStatus} 
+                disabled={loading || !gmailConnected}
+              >
                 {loading ? "Checking..." : "I've Connected - Continue"}
               </button>
             </>
@@ -453,7 +475,11 @@ export default function OnboardingPage() {
             />
           </div>
 
-          <button className="btn btn-primary btn-full" onClick={handleSetPinSubmit} disabled={loading}>
+          <button 
+            className="btn btn-primary btn-full" 
+            onClick={handleSetPinSubmit} 
+            disabled={loading || pin.length !== 4 || confirmPin.length !== 4 || pin !== confirmPin}
+          >
             {loading ? "Please wait..." : "Complete Setup"}
           </button>
         </div>
