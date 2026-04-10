@@ -27,7 +27,7 @@ export default function ActivitiesPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [range, setRange] = useState<"week" | "cycle">("week");
+  const [range, setRange] = useState<"week" | "cycle" | "last_cycle">("week");
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null);
 
   useEffect(() => {
@@ -72,10 +72,49 @@ export default function ActivitiesPage() {
     if (cursor) loadTransactions(cursor);
   };
 
+  const parseApiDate = (value: string) => {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(Date.UTC(year, month - 1, day));
+  };
+
+  const formatNairaWhole = (kobo: string | number) => {
+    const value = typeof kobo === "string" ? parseInt(kobo, 10) : kobo;
+    const naira = Math.round(value / 100);
+    return `N${naira.toLocaleString("en-NG")}`;
+  };
+
+  const daysInPeriod = trend
+    ? Math.max(
+        1,
+        Math.floor(
+          (parseApiDate(trend.period_end).getTime() - parseApiDate(trend.period_start).getTime()) /
+            (24 * 60 * 60 * 1000)
+        ) + 1
+      )
+    : 1;
+
+  const avgDailySpendKobo = trend
+    ? Math.round(parseInt(trend.total_spent_kobo, 10) / daysInPeriod)
+    : 0;
+
   const maxAmount = trend?.bars.reduce((max, bar) => {
     const amt = parseInt(bar.amount_kobo, 10);
     return amt > max ? amt : max;
   }, 0) || 1;
+
+  const peakBarKey = trend?.bars.find((bar) => parseInt(bar.amount_kobo, 10) === maxAmount)?.key;
+
+  const getBarHeight = (amountKobo: number) => {
+    if (amountKobo <= 0) return 8;
+    const ratio = amountKobo / maxAmount;
+    const eased = Math.pow(ratio, 0.7);
+    const min = 18;
+    const max = 122;
+    return Math.round(min + eased * (max - min));
+  };
+
+  const rangeLabel =
+    range === "week" ? "This Week" : range === "cycle" ? "This Cycle" : "Last Cycle";
 
   if (loading) {
     return (
@@ -90,6 +129,16 @@ export default function ActivitiesPage() {
       <header className="header">
         <h1 className="logo">Activities</h1>
       </header>
+
+      <div className="activity-toolbar card">
+        <div className="search-shell" aria-hidden>
+          <span className="search-icon">○</span>
+          <span className="search-text">Search Activity</span>
+        </div>
+        <button className="filter-button" type="button" aria-label="Filter activity" disabled>
+          ≡
+        </button>
+      </div>
 
       <div className="section">
         <div className="range-toggle">
@@ -109,17 +158,30 @@ export default function ActivitiesPage() {
               Cycle
             </button>
           )}
+          {trend?.available_ranges?.includes("last_cycle") && (
+            <button
+              className={`toggle-btn ${range === "last_cycle" ? "active" : ""}`}
+              onClick={() => setRange("last_cycle")}
+            >
+              Last Cycle
+            </button>
+          )}
         </div>
 
         {trend && (
           <div className="chart-card card">
             <div className="chart-summary">
-              <span className="chart-total">
-                {formatNaira(trend.total_spent_kobo)}
-              </span>
+              <div>
+                <p className="chart-caption">Avg. daily spend</p>
+                <span className="chart-total">{formatNaira(avgDailySpendKobo)}</span>
+              </div>
+              <span className="range-chip">{rangeLabel}</span>
+            </div>
+
+            <div className="chart-meta-row">
               {trend.change_percentage !== null && (
                 <span className={`chart-change ${trend.change_percentage > 0 ? "up" : "down"}`}>
-                  {trend.change_percentage > 0 ? "+" : ""}{trend.change_percentage}% vs last {range === "week" ? "week" : "cycle"}
+                  {trend.change_percentage > 0 ? "+" : ""}{trend.change_percentage}%
                 </span>
               )}
             </div>
@@ -127,9 +189,12 @@ export default function ActivitiesPage() {
             <div className="chart-bars">
               {trend.bars.map((bar) => (
                 <div key={bar.key} className="bar-container">
-                  <div 
-                    className="bar" 
-                    style={{ height: `${(parseInt(bar.amount_kobo, 10) / maxAmount) * 100}%` }}
+                  <span className={`bar-amount ${parseInt(bar.amount_kobo, 10) <= 0 ? "empty" : ""}`}>
+                    {parseInt(bar.amount_kobo, 10) > 0 ? formatNairaWhole(bar.amount_kobo) : "N0"}
+                  </span>
+                  <div
+                    className={`bar ${peakBarKey === bar.key && parseInt(bar.amount_kobo, 10) > 0 ? "peak" : ""}`}
+                    style={{ height: `${getBarHeight(parseInt(bar.amount_kobo, 10))}px` }}
                   />
                   <span className="bar-label">{bar.label}</span>
                 </div>
@@ -200,6 +265,43 @@ export default function ActivitiesPage() {
       )}
 
       <style jsx>{`
+        .activity-toolbar {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 14px;
+          padding: 10px;
+          border-radius: 14px;
+        }
+        .search-shell {
+          flex: 1;
+          min-height: 40px;
+          border-radius: 11px;
+          border: 1px solid var(--gray-200);
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 0 12px;
+          color: var(--gray-400);
+          background: var(--background);
+        }
+        .search-icon {
+          font-size: 13px;
+        }
+        .search-text {
+          font-size: 14px;
+        }
+        .filter-button {
+          width: 40px;
+          min-width: 40px;
+          min-height: 40px;
+          border-radius: 11px;
+          border: 1px solid var(--gray-200);
+          background: var(--background);
+          color: var(--gray-400);
+          cursor: not-allowed;
+          opacity: 1;
+        }
         .range-toggle {
           display: flex;
           gap: 8px;
@@ -220,28 +322,58 @@ export default function ActivitiesPage() {
         }
         .chart-card {
           margin-bottom: 24px;
+          border-radius: 16px;
         }
         .chart-summary {
-          text-align: center;
-          margin-bottom: 20px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 10px;
+        }
+        .chart-caption {
+          font-size: 13px;
+          color: var(--gray-500);
+          margin-bottom: 4px;
         }
         .chart-total {
-          font-size: 28px;
+          font-size: 38px;
           font-weight: 700;
           display: block;
+          letter-spacing: -0.02em;
+        }
+        .range-chip {
+          font-size: 12px;
+          color: var(--gray-500);
+          background: var(--gray-100);
+          border-radius: 999px;
+          padding: 8px 10px;
+          align-self: flex-start;
+        }
+        .chart-meta-row {
+          min-height: 22px;
+          margin-bottom: 12px;
         }
         .chart-change {
-          font-size: 14px;
-          margin-top: 4px;
+          font-size: 13px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          padding: 2px 8px;
         }
-        .chart-change.up { color: var(--danger); }
-        .chart-change.down { color: var(--success); }
+        .chart-change.up {
+          color: var(--success);
+          background: #dcfce7;
+        }
+        .chart-change.down {
+          color: var(--danger);
+          background: #fee2e2;
+        }
         .chart-bars {
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
-          height: 150px;
-          gap: 8px;
+          height: 168px;
+          gap: 7px;
           margin-bottom: 12px;
         }
         .bar-container {
@@ -249,18 +381,36 @@ export default function ActivitiesPage() {
           display: flex;
           flex-direction: column;
           align-items: center;
+          justify-content: flex-end;
           height: 100%;
+        }
+        .bar-amount {
+          font-size: 10px;
+          color: var(--gray-500);
+          margin-bottom: 6px;
+          min-height: 14px;
+          display: inline-flex;
+          align-items: center;
+        }
+        .bar-amount.empty {
+          color: transparent;
+          user-select: none;
         }
         .bar {
           width: 100%;
-          background: var(--foreground);
-          border-radius: 4px 4px 0 0;
-          min-height: 4px;
+          max-width: 36px;
+          background: #d9dce4;
+          border-radius: 10px;
+          min-height: 8px;
+          transition: height 0.25s ease;
+        }
+        .bar.peak {
+          background: #2e38aa;
         }
         .bar-label {
-          font-size: 11px;
+          font-size: 12px;
           color: var(--gray-500);
-          margin-top: 8px;
+          margin-top: 7px;
         }
         .chart-period {
           font-size: 12px;
