@@ -52,6 +52,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             {item.label}
           </Link>
         ))}
+        <Link
+          href="/settings"
+          className={`nav-item ${pathname === "/settings" ? "active" : ""}`}
+        >
+          <span className="nav-icon">{pathname === "/settings" ? "●" : "○"}</span>
+          Settings
+        </Link>
       </nav>
 
       <style jsx>{`
