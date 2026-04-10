@@ -8,10 +8,12 @@ type SpendingPace = {
   monthly_budget_kobo: string;
   spent_this_month_kobo: string;
   remaining_kobo: string;
+  safe_daily_spend_kobo: string;
   percentage_used: number;
   days_until_reset: number;
   month_start_date: string;
   month_end_date: string;
+  is_full_month: boolean;
 };
 
 type Transaction = {
@@ -92,6 +94,25 @@ export default function HomePage() {
     }
   };
 
+  const parseApiDate = (value: string) => {
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(Date.UTC(year, month - 1, day));
+  };
+
+  const getCycleProgress = (pace: SpendingPace) => {
+    const dayMs = 24 * 60 * 60 * 1000;
+    const cycleStart = parseApiDate(pace.month_start_date);
+    const cycleEnd = parseApiDate(pace.month_end_date);
+    const todayRaw = new Date();
+    const today = new Date(Date.UTC(todayRaw.getUTCFullYear(), todayRaw.getUTCMonth(), todayRaw.getUTCDate()));
+
+    const totalDays = Math.floor((cycleEnd.getTime() - cycleStart.getTime()) / dayMs) + 1;
+    const elapsed = Math.floor((today.getTime() - cycleStart.getTime()) / dayMs) + 1;
+    const dayOfCycle = Math.min(Math.max(elapsed, 1), totalDays);
+
+    return { dayOfCycle, totalDays };
+  };
+
   if (loading) {
     return (
       <div className="container" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
@@ -109,27 +130,48 @@ export default function HomePage() {
 
       {error && <p className="error">{error}</p>}
 
-      {spendingPace && (
-        <div className="card spending-card">
-          <div className="spending-main">
-            <span className="spending-label">Spent this month</span>
-            <span className="spending-amount">{formatNaira(spendingPace.spent_this_month_kobo)}</span>
-            <span className="spending-context">
-              of {formatNaira(spendingPace.monthly_budget_kobo)} budget
-            </span>
-          </div>
-          <div className="spending-stats">
-            <div className="stat">
-              <span className="stat-label">Remaining</span>
-              <span className="stat-value">{formatNaira(spendingPace.remaining_kobo)}</span>
+      {spendingPace && (() => {
+        const cycle = getCycleProgress(spendingPace);
+
+        return (
+          <>
+            <div className="spending-target-card">
+              <span className="spending-target-label">Today&apos;s spending target</span>
+              <span className="spending-target-amount">{formatNaira(spendingPace.safe_daily_spend_kobo)}</span>
+              <span className="spending-target-context">
+                From your {formatNaira(spendingPace.monthly_budget_kobo)} Budget
+              </span>
             </div>
-            <div className="stat">
-              <span className="stat-label">Used</span>
-              <span className="stat-value">{spendingPace.percentage_used}%</span>
+
+            <div className="card budget-status-card">
+              <div className="budget-status-header">
+                <span className="budget-status-title">Budget Status</span>
+                <span className="budget-status-day">Day {cycle.dayOfCycle} of {cycle.totalDays}</span>
+              </div>
+
+              <p className="budget-status-percent">{spendingPace.percentage_used}% Spent</p>
+
+              <div className="budget-progress-track">
+                <div
+                  className="budget-progress-fill"
+                  style={{ width: `${Math.max(0, Math.min(spendingPace.percentage_used, 100))}%` }}
+                />
+              </div>
+
+              <div className="budget-values">
+                <div className="budget-value-group">
+                  <span className="budget-label">Spent</span>
+                  <span className="budget-value">{formatNaira(spendingPace.spent_this_month_kobo)}</span>
+                </div>
+                <div className="budget-value-group budget-value-group-right">
+                  <span className="budget-label">Remaining</span>
+                  <span className="budget-value budget-value-highlight">{formatNaira(spendingPace.remaining_kobo)}</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        );
+      })()}
 
       {quizStatus && quizStatus.status !== "expired" && (
         <button className="btn btn-secondary btn-full" onClick={handleQuizClick} style={{ marginBottom: 20 }}>
@@ -184,47 +226,94 @@ export default function HomePage() {
       )}
 
       <style jsx>{`
-        .spending-card {
+        .spending-target-card {
+          margin-bottom: 18px;
+          border-radius: 20px;
+          padding: 20px;
+          background: radial-gradient(circle at 15% 20%, #9ca7ff 0%, #6e79ec 42%, #3341b4 100%);
+          color: #f8faff;
+          box-shadow: 0 14px 32px rgba(34, 48, 136, 0.34);
+        }
+        .spending-target-label {
+          display: block;
+          font-size: 13px;
+          font-weight: 500;
+          opacity: 0.92;
+          margin-bottom: 10px;
+        }
+        .spending-target-amount {
+          display: block;
+          font-size: 52px;
+          line-height: 1;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          margin-bottom: 10px;
+        }
+        .spending-target-context {
+          font-size: 15px;
+          color: rgba(247, 250, 255, 0.86);
+        }
+        .budget-status-card {
           margin-bottom: 20px;
         }
-        .spending-main {
-          text-align: center;
-          padding-bottom: 16px;
-          border-bottom: 1px solid var(--gray-200);
-          margin-bottom: 16px;
+        .budget-status-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 14px;
         }
-        .spending-label {
-          font-size: 12px;
-          color: var(--gray-500);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
+        .budget-status-title {
+          font-size: 15px;
+          font-weight: 600;
         }
-        .spending-amount {
-          display: block;
-          font-size: 32px;
-          font-weight: 700;
-          margin: 8px 0;
-        }
-        .spending-context {
+        .budget-status-day {
           font-size: 14px;
           color: var(--gray-500);
         }
-        .spending-stats {
+        .budget-status-percent {
+          font-size: 22px;
+          font-weight: 700;
+          margin-bottom: 10px;
+        }
+        .budget-progress-track {
+          width: 100%;
+          height: 8px;
+          border-radius: 999px;
+          background: var(--gray-200);
+          overflow: hidden;
+          margin-bottom: 14px;
+        }
+        .budget-progress-fill {
+          height: 100%;
+          border-radius: 999px;
+          background: linear-gradient(90deg, #2d42b6 0%, #4b58d3 100%);
+        }
+        .budget-values {
           display: flex;
-          justify-content: space-around;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 12px;
         }
-        .stat {
-          text-align: center;
+        .budget-value-group {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
         }
-        .stat-label {
-          display: block;
-          font-size: 12px;
+        .budget-value-group-right {
+          text-align: right;
+        }
+        .budget-label {
+          font-size: 13px;
           color: var(--gray-500);
-          margin-bottom: 4px;
         }
-        .stat-value {
-          font-size: 18px;
-          font-weight: 600;
+        .budget-value {
+          font-size: 29px;
+          font-weight: 700;
+          line-height: 1.1;
+          letter-spacing: -0.02em;
+        }
+        .budget-value-highlight {
+          color: #2f3fae;
         }
         .section {
           margin-bottom: 20px;
@@ -303,6 +392,14 @@ export default function HomePage() {
         .modal-value {
           font-size: 14px;
           font-weight: 500;
+        }
+        @media (max-width: 520px) {
+          .spending-target-amount {
+            font-size: 44px;
+          }
+          .budget-value {
+            font-size: 24px;
+          }
         }
       `}</style>
     </div>
