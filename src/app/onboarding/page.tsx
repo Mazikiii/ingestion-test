@@ -163,7 +163,6 @@ export default function OnboardingPage() {
       }
 
       setProfile(data.profile);
-      await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save profile");
     } finally {
