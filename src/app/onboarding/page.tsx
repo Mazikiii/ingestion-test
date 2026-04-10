@@ -81,16 +81,12 @@ export default function OnboardingPage() {
   }, []);
 
   const loadData = async () => {
-    console.error("[onboarding] loadData started");
     try {
       const [profileRes, banksRes, gmailStatusRes] = await Promise.all([
         api.get("/profile"),
         api.get("/banks"),
         api.get("/ingestion/gmail/status"),
       ]);
-
-      console.error("[onboarding] profileRes ok:", profileRes.ok, "status:", profileRes.status);
-      console.error("[onboarding] banksRes ok:", banksRes.ok, "status:", banksRes.status);
 
       if (profileRes.ok) {
         const data = await profileRes.json();
@@ -155,13 +151,6 @@ export default function OnboardingPage() {
         life_stage: lifeStage,
       });
       const data = await handleApiResponse<{ profile: Profile }>(res);
-
-      try {
-        await advanceStep();
-      } catch {
-        // Backend auto-advances
-      }
-
       setProfile(data.profile);
       await loadData();
     } catch (e) {
@@ -182,13 +171,6 @@ export default function OnboardingPage() {
     try {
       const res = await api.post("/onboarding/budget", { monthly_budget_naira: amount });
       await handleApiResponse(res);
-
-      try {
-        await advanceStep();
-      } catch {
-        // Some backends auto-advance on budget
-      }
-
       await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to set budget");
@@ -207,13 +189,6 @@ export default function OnboardingPage() {
     try {
       const res = await api.post("/onboarding/bank", { bank_id: selectedBankId });
       await handleApiResponse(res);
-
-      try {
-        await advanceStep();
-      } catch {
-        // Some backends auto-advance on bank
-      }
-
       await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save bank");
@@ -434,15 +409,16 @@ export default function OnboardingPage() {
               >
                 Open Google Sign-In
               </a>
-              <button 
-                className="btn btn-primary btn-full" 
-                onClick={handleCheckGmailStatus} 
-                disabled={loading || !gmailConnected}
-              >
-                {loading ? "Checking..." : "I've Connected - Continue"}
-              </button>
             </>
           )}
+          <button
+            className="btn btn-primary btn-full"
+            onClick={handleCheckGmailStatus}
+            disabled={loading}
+            style={{ marginTop: gmailUrl ? 0 : 12 }}
+          >
+            {loading ? "Checking..." : "I've Connected - Continue"}
+          </button>
         </div>
       )}
 

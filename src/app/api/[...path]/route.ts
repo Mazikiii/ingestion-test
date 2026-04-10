@@ -70,7 +70,6 @@ async function readBodyIfNeeded(request: Request, method: string): Promise<Array
 async function proxyRequest(request: Request, context: RouteContext, method: string) {
   const { path } = await context.params;
   const targetUrl = buildTargetUrl(request, path);
-  console.error(`[PROXY] ${method} ${path.join("/")} -> ${targetUrl}`);
 
   try {
     const upstream = await fetch(targetUrl, {
