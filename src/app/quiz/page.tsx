@@ -147,7 +147,9 @@ function QuizContent() {
         const data = await res.json();
         setAnswerResult(data);
         if (data.isCompleted) {
-          loadResult();
+          await loadResult();
+          setStatus((prev) => (prev ? { ...prev, status: "completed" } : prev));
+          router.push("/quiz?result=true");
         }
       }
     } catch (e) {
@@ -176,9 +178,9 @@ function QuizContent() {
     return (
       <div className="container">
         <header className="header">
-          <button className="btn btn-ghost" onClick={() => router.back()}>Back</button>
+          <button className="btn btn-ghost" onClick={() => router.back()}>←</button>
           <h1 className="logo">Quiz</h1>
-          <div style={{ width: 60 }} />
+          <button className="btn btn-ghost" onClick={() => router.push("/home")}>Home</button>
         </header>
         <div className="card">
           <p className="text-center">Quiz has ended</p>
@@ -202,9 +204,9 @@ function QuizContent() {
     return (
       <div className="container">
         <header className="header">
-          <button className="btn btn-ghost" onClick={() => router.back()}>Back</button>
+          <button className="btn btn-ghost" onClick={() => router.back()}>←</button>
           <h1 className="logo">Quiz Result</h1>
-          <div style={{ width: 60 }} />
+          <button className="btn btn-ghost" onClick={() => router.push("/home")}>Home</button>
         </header>
 
         <div className="card result-card">
@@ -306,9 +308,9 @@ function QuizContent() {
     return (
       <div className="container">
         <header className="header">
-          <button className="btn btn-ghost" onClick={() => router.back()}>Back</button>
+          <button className="btn btn-ghost" onClick={() => router.back()}>←</button>
           <h1 className="logo">Quiz</h1>
-          <div style={{ width: 60 }} />
+          <button className="btn btn-ghost" onClick={() => router.push("/home")}>Home</button>
         </header>
 
         <div className="card">
@@ -327,9 +329,12 @@ function QuizContent() {
   return (
     <div className="container">
       <header className="header">
-        <span>Quiz</span>
-        <span>{session.currentIndex + 1}/{session.questions.length}</span>
+        <button className="btn btn-ghost" onClick={() => router.back()}>←</button>
+        <span className="logo">Quiz</span>
+        <button className="btn btn-ghost" onClick={() => router.push("/home")}>Home</button>
       </header>
+
+      <p className="quiz-progress">{session.currentIndex + 1}/{session.questions.length}</p>
 
       {answerResult && (
         <div className={`feedback-card card ${answerResult.isCorrect ? "correct" : "wrong"}`}>
@@ -366,6 +371,12 @@ function QuizContent() {
       </div>
 
       <style jsx>{`
+        .quiz-progress {
+          text-align: center;
+          color: var(--gray-500);
+          font-size: 13px;
+          margin-bottom: 12px;
+        }
         .feedback-card {
           margin-bottom: 16px;
           border-left: 4px solid;
