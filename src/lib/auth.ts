@@ -28,6 +28,8 @@ interface RegisterResponse {
   userId: string;
   message: string;
   registrationStatus?: RegistrationStatus;
+  accessToken?: string;
+  refreshToken?: string;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {

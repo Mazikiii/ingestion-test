@@ -36,9 +36,15 @@ export default function RegisterPage() {
       const data = await authApi.register(email);
       console.error("[register] response:", data);
       if (data.registrationStatus && data.registrationStatus !== "not_verified") {
-        const redirectPath = getAuthRedirectPath(data.registrationStatus);
-        console.error("[register] redirecting to:", redirectPath);
-        router.push(redirectPath);
+        if (data.accessToken && data.refreshToken) {
+          setTokens(data.accessToken, data.refreshToken);
+          markPinSetupRequired();
+          const redirectPath = getAuthRedirectPath(data.registrationStatus);
+          console.error("[register] redirecting to:", redirectPath);
+          router.push(redirectPath);
+        } else {
+          router.push("/login");
+        }
         return;
       }
       setMessage("Check your email for the code");

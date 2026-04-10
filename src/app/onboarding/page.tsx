@@ -81,12 +81,16 @@ export default function OnboardingPage() {
   }, []);
 
   const loadData = async () => {
+    console.error("[onboarding] loadData started");
     try {
       const [profileRes, banksRes, gmailStatusRes] = await Promise.all([
         api.get("/profile"),
         api.get("/banks"),
         api.get("/ingestion/gmail/status"),
       ]);
+
+      console.error("[onboarding] profileRes ok:", profileRes.ok, "status:", profileRes.status);
+      console.error("[onboarding] banksRes ok:", banksRes.ok, "status:", banksRes.status);
 
       if (profileRes.ok) {
         const data = await profileRes.json();
