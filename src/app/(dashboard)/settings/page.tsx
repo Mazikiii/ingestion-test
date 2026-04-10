@@ -65,12 +65,8 @@ export default function SettingsPage() {
     setError("");
     try {
       const res = await api.patch("/banks/primary", { bank_id: selectedBankId });
-      const data = await handleApiResponse<{ bank: Bank }>(res);
-      if (data.bank.has_email_alerts) {
-        setFlow("email_connect");
-      } else {
-        router.push("/home");
-      }
+      await handleApiResponse<{ bank: Bank }>(res);
+      setFlow("email_connect");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save bank");
     } finally {
@@ -109,12 +105,6 @@ export default function SettingsPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleChangeEmailOnly = () => {
-    setFlow("email_connect");
-    setError("");
-    setMessage("");
   };
 
   if (flow === "bank_select") {
@@ -266,18 +256,7 @@ export default function SettingsPage() {
         >
           <div className="settings-option-content">
             <span className="settings-option-icon">🏦</span>
-            <span className="settings-option-text">Change Bank</span>
-          </div>
-          <span className="settings-option-arrow">→</span>
-        </button>
-
-        <button
-          className="settings-option card"
-          onClick={handleChangeEmailOnly}
-        >
-          <div className="settings-option-content">
-            <span className="settings-option-icon">📧</span>
-            <span className="settings-option-text">Change Email Connection</span>
+            <span className="settings-option-text">Change Bank & Email</span>
           </div>
           <span className="settings-option-arrow">→</span>
         </button>
