@@ -120,20 +120,24 @@ export const authApi = {
 };
 
 export function getAuthRedirectPath(status?: RegistrationStatus): string {
-  switch (status) {
-    case "not_verified":
-      return "/register";
-    case "no_profile":
-      return "/onboarding";
-    case "onboarding_incomplete":
-      return "/onboarding";
-    case "pin_not_set":
-      return "/onboarding";
-    case "complete":
-      return "/home";
-    default:
-      return "/onboarding";
-  }
+  const path = (() => {
+    switch (status) {
+      case "not_verified":
+        return "/register";
+      case "no_profile":
+        return "/onboarding";
+      case "onboarding_incomplete":
+        return "/onboarding";
+      case "pin_not_set":
+        return "/onboarding";
+      case "complete":
+        return "/home";
+      default:
+        return "/onboarding";
+    }
+  })();
+  console.error("[getAuthRedirectPath]", status, "->", path);
+  return path;
 }
 
 export default authApi;

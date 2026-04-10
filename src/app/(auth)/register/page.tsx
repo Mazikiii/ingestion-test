@@ -34,8 +34,10 @@ export default function RegisterPage() {
     setError("");
     try {
       const data = await authApi.register(email);
+      console.error("[register] response:", data);
       if (data.registrationStatus && data.registrationStatus !== "not_verified") {
         const redirectPath = getAuthRedirectPath(data.registrationStatus);
+        console.error("[register] redirecting to:", redirectPath);
         router.push(redirectPath);
         return;
       }
