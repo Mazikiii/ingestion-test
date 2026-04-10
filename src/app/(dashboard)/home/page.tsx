@@ -94,8 +94,13 @@ export default function HomePage() {
     }
   };
 
-  const parseApiDate = (value: string) => {
-    const [year, month, day] = value.split("-").map(Number);
+  const parseApiDate = (value?: string) => {
+    if (typeof value !== "string") return null;
+    const parts = value.split("-").map(Number);
+    if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) {
+      return null;
+    }
+    const [year, month, day] = parts;
     return new Date(Date.UTC(year, month - 1, day));
   };
 
@@ -103,6 +108,8 @@ export default function HomePage() {
     const dayMs = 24 * 60 * 60 * 1000;
     const cycleStart = parseApiDate(pace.month_start_date);
     const cycleEnd = parseApiDate(pace.month_end_date);
+    if (!cycleStart || !cycleEnd) return null;
+
     const todayRaw = new Date();
     const today = new Date(Date.UTC(todayRaw.getUTCFullYear(), todayRaw.getUTCMonth(), todayRaw.getUTCDate()));
 
@@ -146,7 +153,7 @@ export default function HomePage() {
             <div className="card budget-status-card">
               <div className="budget-status-header">
                 <span className="budget-status-title">Budget Status</span>
-                <span className="budget-status-day">Day {cycle.dayOfCycle} of {cycle.totalDays}</span>
+                {cycle && <span className="budget-status-day">Day {cycle.dayOfCycle} of {cycle.totalDays}</span>}
               </div>
 
               <p className="budget-status-percent">{spendingPace.percentage_used}% Spent</p>
