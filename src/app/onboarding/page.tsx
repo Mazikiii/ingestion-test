@@ -34,11 +34,11 @@ const AGE_GROUPS = [
 
 const LIFE_STAGES = [
   { value: "student", label: "Student" },
-  { value: "salary_worker", label: "Salary Worker" },
-  { value: "business_owner", label: "Business Owner" },
+  { value: "nysc_corper", label: "NYSC Corper" },
   { value: "freelancer", label: "Freelancer" },
-  { value: "unemployed", label: "Unemployed" },
-  { value: "retired", label: "Retired" },
+  { value: "salary_worker", label: "Salary Worker" },
+  { value: "Unemployed", label: "Unemployed" },
+  { value: "graduate", label: "Graduate" },
 ];
 
 export default function OnboardingPage() {
@@ -149,21 +149,26 @@ export default function OnboardingPage() {
     setLoading(true);
     setError("");
     try {
+      console.error("[profile] submitting:", { full_name: fullName.trim(), age_group: ageGroup, life_stage: lifeStage });
       const res = await api.patch("/profile", {
         full_name: fullName.trim(),
         age_group: ageGroup,
         life_stage: lifeStage,
       });
+      console.error("[profile] response ok:", res.ok, "status:", res.status);
       const data = await handleApiResponse<{ profile: Profile }>(res);
 
       try {
+        console.error("[profile] calling advanceStep...");
         await advanceStep();
-      } catch {
-        // Some backends auto-advance on profile patch
+        console.error("[profile] advanceStep completed");
+      } catch (e) {
+        console.error("[profile] advanceStep error:", e);
       }
 
       setProfile(data.profile);
     } catch (e) {
+      console.error("[profile] submit error:", e);
       setError(e instanceof Error ? e.message : "Failed to save profile");
     } finally {
       setLoading(false);
